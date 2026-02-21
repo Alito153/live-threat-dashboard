@@ -1,7 +1,7 @@
 from typing import Any, Dict
-import requests
 
-from ..config import OTX_API_KEY, HTTP_TIMEOUT
+from ..config import OTX_API_KEY, OTX_BASE_URL, HTTP_TIMEOUT
+from .http_client import missing_api_key_result, request_json
 
 
 def _otx_type(ioc_type: str) -> str | None:
@@ -21,40 +21,50 @@ def get_general(ioc_type: str, ioc: str) -> Dict[str, Any]:
     Docs: https://otx.alienvault.com/api
     """
     if not OTX_API_KEY:
-        return {"error": "OTX_API_KEY missing"}
+        return missing_api_key_result("OTX_API_KEY")
 
     t = _otx_type(ioc_type)
     if not t:
-        return {"error": f"Unsupported ioc_type={ioc_type} for OTX"}
+        return {
+            "ok": True,
+            "status_code": None,
+            "duration_ms": 0.0,
+            "data": {"info": f"OTX skipped for unsupported ioc_type={ioc_type}"},
+        }
 
-    url = f"https://otx.alienvault.com/api/v1/indicators/{t}/{ioc}/general"
+    url = f"{OTX_BASE_URL}/api/v1/indicators/{t}/{ioc}/general"
     headers = {"X-OTX-API-KEY": OTX_API_KEY}
 
-    try:
-        r = requests.get(url, headers=headers, timeout=HTTP_TIMEOUT)
-        r.raise_for_status()
-        data = r.json() or {}
+    res = request_json(
+        "GET",
+        url,
+        headers=headers,
+        timeout=HTTP_TIMEOUT,
+        max_retries=1,
+    )
+    if not res.get("ok"):
+        return res
 
-        pulse_info = data.get("pulse_info", {}) or {}
-        pulses = pulse_info.get("pulses", []) or []
+    payload = res.get("data") or {}
+    pulse_info = payload.get("pulse_info", {}) or {}
+    pulses = pulse_info.get("pulses", []) or []
 
-        pulse_summaries = []
-        for p in pulses[:10]:
-            pulse_summaries.append(
-                {
-                    "name": p.get("name"),
-                    "id": p.get("id"),
-                    "created": p.get("created"),
-                    "modified": p.get("modified"),
-                    "tags": p.get("tags", []) or [],
-                    "TLP": p.get("TLP"),
-                }
-            )
+    pulse_summaries = []
+    for p in pulses[:10]:
+        pulse_summaries.append(
+            {
+                "name": p.get("name"),
+                "id": p.get("id"),
+                "created": p.get("created"),
+                "modified": p.get("modified"),
+                "tags": p.get("tags", []) or [],
+                "TLP": p.get("TLP"),
+            }
+        )
 
-        return {
-            "pulse_count": pulse_info.get("count", len(pulses)),
-            "pulses": pulse_summaries,
-            "raw": data,
-        }
-    except Exception as e:
-        return {"error": str(e)}
+    res["data"] = {
+        "pulse_count": pulse_info.get("count", len(pulses)),
+        "pulses": pulse_summaries,
+        "raw": payload,
+    }
+    return res

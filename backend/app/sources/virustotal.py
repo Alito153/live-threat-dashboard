@@ -1,10 +1,10 @@
 from typing import Any, Dict
 import base64
-import requests
 
-from ..config import VIRUSTOTAL_API_KEY, HTTP_TIMEOUT
+from ..config import VIRUSTOTAL_API_KEY, VIRUSTOTAL_BASE_URL, HTTP_TIMEOUT
+from .http_client import missing_api_key_result, request_json
 
-BASE = "https://www.virustotal.com/api/v3"
+BASE = f"{VIRUSTOTAL_BASE_URL}/api/v3"
 
 
 def _headers() -> Dict[str, str]:
@@ -13,7 +13,7 @@ def _headers() -> Dict[str, str]:
 
 def _extract_common(data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Extrait des champs utiles + stats AV si disponibles.
+    Extract useful fields and AV stats when available.
     """
     attrs = (data.get("data") or {}).get("attributes") or {}
     stats = attrs.get("last_analysis_stats") or {}
@@ -33,7 +33,6 @@ def _extract_common(data: Dict[str, Any]) -> Dict[str, Any]:
 def _url_id(url_value: str) -> str:
     """
     VT v3 URL identifier is base64(url) without '=' padding.
-    (Alternative: POST /urls returns an id too, but this is deterministic.)
     """
     encoded = base64.urlsafe_b64encode(url_value.encode("utf-8")).decode("utf-8")
     return encoded.strip("=")
@@ -42,72 +41,106 @@ def _url_id(url_value: str) -> str:
 def lookup(ioc_type: str, ioc: str) -> Dict[str, Any]:
     """
     VirusTotal v3 lookup for:
-    - ip / domain / file hash → direct GET
-    - url → submit (POST /urls) then GET /urls/{id} (or deterministic id)
+    - ip / domain / file hash -> direct GET
+    - url -> submit (POST /urls) then GET /urls/{id}
     Docs: https://docs.virustotal.com/reference/overview
     """
     if not VIRUSTOTAL_API_KEY:
-        return {"error": "VIRUSTOTAL_API_KEY missing"}
+        return missing_api_key_result("VIRUSTOTAL_API_KEY")
 
-    try:
-        if ioc_type == "ip":
-            return _lookup_get(f"/ip_addresses/{ioc}")
+    if ioc_type == "ip":
+        return _lookup_get(f"/ip_addresses/{ioc}")
 
-        if ioc_type == "domain":
-            return _lookup_get(f"/domains/{ioc}")
+    if ioc_type == "domain":
+        return _lookup_get(f"/domains/{ioc}")
 
-        if ioc_type in {"sha256", "sha1", "md5"}:
-            return _lookup_get(f"/files/{ioc}")
+    if ioc_type in {"sha256", "sha1", "md5"}:
+        return _lookup_get(f"/files/{ioc}")
 
-        if ioc_type == "url":
-            # 1) Submit URL (creates/refreshes analysis)
-            submit_res = _submit_url(ioc)
+    if ioc_type == "url":
+        submit_res = _submit_url(ioc)
+        if not submit_res.get("ok"):
+            return submit_res
 
-            # 2) Fetch URL object
-            # Prefer id returned by submit if available; fallback to deterministic id.
-            url_id = submit_res.get("url_id") or _url_id(ioc)
-            url_obj = _lookup_get(f"/urls/{url_id}")
+        submit_data = submit_res.get("data") or {}
+        url_id = submit_data.get("url_id") or _url_id(ioc)
 
-            # Merge: include submit meta + url object fields
-            merged = {
-                **url_obj,
-                "url_id": url_id,
-                "submit": submit_res.get("submit"),
-            }
-            return merged
+        url_res = _lookup_get(f"/urls/{url_id}")
+        if not url_res.get("ok"):
+            error_block = dict(url_res.get("error") or {})
+            existing_details = error_block.get("details")
+            if isinstance(existing_details, dict):
+                details = dict(existing_details)
+            elif existing_details is None:
+                details = {}
+            else:
+                details = {"upstream": existing_details}
+            details["url_id"] = url_id
+            details["submit_status_code"] = submit_res.get("status_code")
+            details["submit_duration_ms"] = submit_res.get("duration_ms")
+            error_block["details"] = details
+            url_res["error"] = error_block
+            url_res["duration_ms"] = round(
+                (submit_res.get("duration_ms") or 0.0) + (url_res.get("duration_ms") or 0.0),
+                1,
+            )
+            return url_res
 
-        return {"info": f"VT lookup skipped for type={ioc_type}"}
+        merged_data = dict(url_res.get("data") or {})
+        merged_data["url_id"] = url_id
+        merged_data["submit"] = submit_data.get("submit")
+        url_res["data"] = merged_data
+        url_res["duration_ms"] = round(
+            (submit_res.get("duration_ms") or 0.0) + (url_res.get("duration_ms") or 0.0),
+            1,
+        )
+        return url_res
 
-    except Exception as e:
-        return {"error": str(e)}
+    return {
+        "ok": True,
+        "status_code": None,
+        "duration_ms": 0.0,
+        "data": {"info": f"VT lookup skipped for type={ioc_type}"},
+    }
 
 
 def _lookup_get(endpoint: str) -> Dict[str, Any]:
-    r = requests.get(BASE + endpoint, headers=_headers(), timeout=HTTP_TIMEOUT)
-    r.raise_for_status()
-    data = r.json() or {}
+    res = request_json(
+        "GET",
+        BASE + endpoint,
+        headers=_headers(),
+        timeout=HTTP_TIMEOUT,
+        max_retries=1,
+    )
+    if not res.get("ok"):
+        return res
 
-    out = _extract_common(data)
-    out["raw"] = data  # keep full payload for debug if you want
-    return out
+    payload = res.get("data") or {}
+    out = _extract_common(payload)
+    out["raw"] = payload
+    res["data"] = out
+    return res
 
 
 def _submit_url(url_value: str) -> Dict[str, Any]:
     """
     POST /urls with form data {url: ...}
-    Returns an id like "u-<...>" that can be used in GET /urls/{id}
     """
-    r = requests.post(
+    res = request_json(
+        "POST",
         BASE + "/urls",
         headers=_headers(),
         data={"url": url_value},
         timeout=HTTP_TIMEOUT,
+        max_retries=1,
     )
-    r.raise_for_status()
-    j = r.json() or {}
-    url_id = (j.get("data") or {}).get("id")
+    if not res.get("ok"):
+        return res
 
-    return {
+    payload = res.get("data") or {}
+    url_id = (payload.get("data") or {}).get("id")
+    res["data"] = {
         "url_id": url_id,
-        "submit": j,  # raw submit response (small)
+        "submit": payload,
     }
+    return res

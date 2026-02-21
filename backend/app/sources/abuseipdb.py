@@ -1,7 +1,7 @@
 from typing import Any, Dict
-import requests
 
-from ..config import ABUSEIPDB_API_KEY, HTTP_TIMEOUT
+from ..config import ABUSEIPDB_API_KEY, ABUSEIPDB_BASE_URL, HTTP_TIMEOUT
+from .http_client import missing_api_key_result, request_json
 
 
 def check_ip(ip: str) -> Dict[str, Any]:
@@ -10,26 +10,32 @@ def check_ip(ip: str) -> Dict[str, Any]:
     Docs: https://docs.abuseipdb.com/
     """
     if not ABUSEIPDB_API_KEY:
-        return {"error": "ABUSEIPDB_API_KEY missing"}
+        return missing_api_key_result("ABUSEIPDB_API_KEY")
 
-    url = "https://api.abuseipdb.com/api/v2/check"
+    url = f"{ABUSEIPDB_BASE_URL}/api/v2/check"
     headers = {"Key": ABUSEIPDB_API_KEY, "Accept": "application/json"}
     params = {"ipAddress": ip, "maxAgeInDays": 90, "verbose": True}
 
-    try:
-        r = requests.get(url, headers=headers, params=params, timeout=HTTP_TIMEOUT)
-        r.raise_for_status()
-        d = (r.json() or {}).get("data", {}) or {}
+    res = request_json(
+        "GET",
+        url,
+        headers=headers,
+        params=params,
+        timeout=HTTP_TIMEOUT,
+        max_retries=1,
+    )
+    if not res.get("ok"):
+        return res
 
-        return {
-            "abuseConfidenceScore": d.get("abuseConfidenceScore"),
-            "totalReports": d.get("totalReports"),
-            "countryCode": d.get("countryCode"),
-            "isp": d.get("isp"),
-            "domain": d.get("domain"),
-            "usageType": d.get("usageType"),
-            "lastReportedAt": d.get("lastReportedAt"),
-            "raw": d,
-        }
-    except Exception as e:
-        return {"error": str(e)}
+    payload = (res.get("data") or {}).get("data", {}) or {}
+    res["data"] = {
+        "abuseConfidenceScore": payload.get("abuseConfidenceScore"),
+        "totalReports": payload.get("totalReports"),
+        "countryCode": payload.get("countryCode"),
+        "isp": payload.get("isp"),
+        "domain": payload.get("domain"),
+        "usageType": payload.get("usageType"),
+        "lastReportedAt": payload.get("lastReportedAt"),
+        "raw": payload,
+    }
+    return res

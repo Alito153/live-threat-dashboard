@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS ioc (
+  id SERIAL PRIMARY KEY,
+  type TEXT NOT NULL,
+  value TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS enrichment (
+  id SERIAL PRIMARY KEY,
+  ioc_id INT REFERENCES ioc(id),
+  source TEXT NOT NULL,
+  score INT,
+  raw_json JSONB,
+  fetched_at TIMESTAMPTZ DEFAULT NOW()
+);

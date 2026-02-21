@@ -22,3 +22,7 @@ SOURCE_TIMEOUT = _float_env("SOURCE_TIMEOUT", HTTP_CONNECT_TIMEOUT + HTTP_READ_T
 ABUSEIPDB_API_KEY = os.getenv("ABUSEIPDB_API_KEY", "")
 OTX_API_KEY = os.getenv("OTX_API_KEY", "")
 VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY", "")
+
+ABUSEIPDB_BASE_URL = os.getenv("ABUSEIPDB_BASE_URL", "https://api.abuseipdb.com").rstrip("/")
+OTX_BASE_URL = os.getenv("OTX_BASE_URL", "https://otx.alienvault.com").rstrip("/")
+VIRUSTOTAL_BASE_URL = os.getenv("VIRUSTOTAL_BASE_URL", "https://www.virustotal.com").rstrip("/")
