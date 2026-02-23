@@ -13,11 +13,23 @@ def _float_env(name: str, default: float) -> float:
         return default
 
 
+def _int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 _legacy_timeout = _float_env("HTTP_TIMEOUT", 12.0)
 HTTP_CONNECT_TIMEOUT = _float_env("HTTP_CONNECT_TIMEOUT", 4.0)
 HTTP_READ_TIMEOUT = _float_env("HTTP_READ_TIMEOUT", _legacy_timeout)
 HTTP_TIMEOUT = (HTTP_CONNECT_TIMEOUT, HTTP_READ_TIMEOUT)
 SOURCE_TIMEOUT = _float_env("SOURCE_TIMEOUT", HTTP_CONNECT_TIMEOUT + HTTP_READ_TIMEOUT + 1.0)
+CACHE_TTL_SECONDS = _float_env("CACHE_TTL_SECONDS", 300.0)
+CACHE_MAX_ITEMS = _int_env("CACHE_MAX_ITEMS", 2048)
 
 ABUSEIPDB_API_KEY = os.getenv("ABUSEIPDB_API_KEY", "")
 OTX_API_KEY = os.getenv("OTX_API_KEY", "")

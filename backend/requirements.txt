@@ -4,3 +4,4 @@ psycopg[binary]
 sqlalchemy
 requests
 python-dotenv
+pytest
