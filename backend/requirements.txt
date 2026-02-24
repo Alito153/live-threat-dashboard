@@ -4,4 +4,5 @@ psycopg[binary]
 sqlalchemy
 requests
 python-dotenv
+anyio
 pytest
