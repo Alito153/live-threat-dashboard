@@ -7,6 +7,11 @@ services:
       POSTGRES_USER: threat
       POSTGRES_PASSWORD: threat
       POSTGRES_DB: threatdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U threat -d threatdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     ports:
       - "5432:5432"
     volumes:
@@ -28,10 +33,22 @@ services:
     container_name: threat_api
     ports:
       - "8000:8000"
-    env_file:
-      - .env.example
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://threat:threat@threat_db:5432/threatdb}
+      COLLECTOR_ENABLED: ${COLLECTOR_ENABLED:-true}
+      COLLECTOR_INTERVAL_SECONDS: ${COLLECTOR_INTERVAL_SECONDS:-10}
+      COLLECTOR_BATCH_SIZE: ${COLLECTOR_BATCH_SIZE:-10}
+      ENRICH_TTL_SECONDS: ${ENRICH_TTL_SECONDS:-600}
+      HTTP_TIMEOUT: ${HTTP_TIMEOUT:-10}
+      HTTP_CONNECT_TIMEOUT: ${HTTP_CONNECT_TIMEOUT:-4}
+      HTTP_READ_TIMEOUT: ${HTTP_READ_TIMEOUT:-10}
+      SOURCE_TIMEOUT: ${SOURCE_TIMEOUT:-10}
+      ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
+      OTX_API_KEY: ${OTX_API_KEY:-}
+      VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:

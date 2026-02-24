@@ -30,6 +30,17 @@ def _bool_env(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _default_database_url() -> str:
+    explicit = os.getenv("DATABASE_URL", "").strip()
+    if explicit:
+        return explicit
+
+    in_docker = os.path.exists("/.dockerenv") or _bool_env("RUNNING_IN_DOCKER", False)
+    if in_docker:
+        return "postgresql://threat:threat@threat_db:5432/threatdb"
+    return "postgresql://postgres:postgres@localhost:5432/live_threat_dashboard"
+
+
 _legacy_timeout = _float_env("HTTP_TIMEOUT", 12.0)
 HTTP_CONNECT_TIMEOUT = _float_env("HTTP_CONNECT_TIMEOUT", 4.0)
 HTTP_READ_TIMEOUT = _float_env("HTTP_READ_TIMEOUT", _legacy_timeout)
@@ -41,7 +52,7 @@ COLLECTOR_ENABLED = _bool_env("COLLECTOR_ENABLED", False)
 COLLECTOR_INTERVAL_SECONDS = _float_env("COLLECTOR_INTERVAL_SECONDS", 10.0)
 COLLECTOR_BATCH_SIZE = _int_env("COLLECTOR_BATCH_SIZE", 10)
 ENRICH_TTL_SECONDS = _float_env("ENRICH_TTL_SECONDS", 600.0)
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/live_threat_dashboard")
+DATABASE_URL = _default_database_url()
 
 ABUSEIPDB_API_KEY = os.getenv("ABUSEIPDB_API_KEY", "")
 OTX_API_KEY = os.getenv("OTX_API_KEY", "")

@@ -5,6 +5,7 @@ import logging
 import signal
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Protocol
+from urllib.parse import urlsplit
 
 import psycopg
 from psycopg.rows import dict_row
@@ -115,6 +116,18 @@ class PostgresCollectorRepository:
             conn.commit()
 
 
+def _database_target(database_url: str) -> str:
+    try:
+        parts = urlsplit(database_url)
+    except ValueError:
+        return "invalid_database_url"
+
+    host = parts.hostname or "unknown-host"
+    port = parts.port or 5432
+    db_name = parts.path.lstrip("/") or "unknown-db"
+    return f"{host}:{port}/{db_name}"
+
+
 class CollectorService:
     def __init__(
         self,
@@ -183,6 +196,18 @@ class CollectorService:
 
 
 async def _run_collector() -> None:
+    if not COLLECTOR_ENABLED:
+        logger.info("collector disabled (COLLECTOR_ENABLED=false). Exiting.")
+        return
+
+    logger.info(
+        "collector boot database_target=%s interval_seconds=%.1f batch_size=%s ttl_seconds=%.1f",
+        _database_target(DATABASE_URL),
+        COLLECTOR_INTERVAL_SECONDS,
+        COLLECTOR_BATCH_SIZE,
+        ENRICH_TTL_SECONDS,
+    )
+
     repository = PostgresCollectorRepository(DATABASE_URL)
     service = CollectorService(
         repository,
