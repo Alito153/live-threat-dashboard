@@ -44,6 +44,9 @@ COLLECTOR_ENABLED=true
 COLLECTOR_INTERVAL_SECONDS=10
 COLLECTOR_BATCH_SIZE=10
 ENRICH_TTL_SECONDS=600
+LOOKUP_AUTO_INSERT_IOC=true
+LOOKUP_DB_WRITE_TIMEOUT=1.5
+DB_CONNECT_TIMEOUT=3
 
 HTTP_TIMEOUT=10
 HTTP_CONNECT_TIMEOUT=4
@@ -96,6 +99,10 @@ VALUES
 '@ | docker exec -i threat_db psql -U threat -d threatdb
 ```
 
+Note:
+- Manual SQL insert is optional.
+- New IOC tested via `GET /lookup/{ioc}` are auto-inserted into table `ioc` when `LOOKUP_AUTO_INSERT_IOC=true`.
+
 ## 6) Run API checks
 
 ```powershell
@@ -103,6 +110,9 @@ curl.exe -s "http://127.0.0.1:8000/health"
 curl.exe -s "http://127.0.0.1:8000/lookup/8.8.8.8"
 curl.exe -s "http://127.0.0.1:8000/lookup/8.8.8.8?debug=true"
 ```
+
+UI is also available at:
+- `http://127.0.0.1:8000/`
 
 ## 7) Run collector in backend container
 

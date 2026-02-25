@@ -57,14 +57,6 @@ This project solves that by:
 - Git history uses clean commit messages (`feat:`, `fix:`, `docs:`) and scoped changes.
 - Source code includes focused comments/docstrings where behavior is non-obvious.
 
-## Repository
-
-- GitHub: `https://github.com/Alito153/live-threat-dashboard`
-- Recommended commit style:
-  - `feat: add ...`
-  - `fix: correct ...`
-  - `docs: update ...`
-
 ## What this project demonstrates
 
 - Threat intelligence aggregation from multiple APIs
@@ -76,6 +68,18 @@ This project solves that by:
 ## Dashboard Screenshot
 
 ![Live Threat Overview](docs/screenshots/live-threat-overview.png)
+
+## Web Interface
+
+After starting the stack, open:
+- `http://127.0.0.1:8000/`
+
+UI features:
+- IOC input (IP/domain/URL/hash)
+- debug toggle (`raw_json`)
+- summary cards (`risk_score`, `risk_level`, categories)
+- per-source cards (status, score, duration, errors)
+- full JSON result viewer
 
 ## Demo Video
 
@@ -241,6 +245,7 @@ Response includes:
 - Each source always returns a stable structure (`ok` or `error`).
 - Missing API key or upstream failure does not crash `/lookup`.
 - In-memory TTL cache reduces repeated API calls.
+- IOC auto-registration: each `/lookup/{ioc}` call inserts IOC into PostgreSQL (`ioc`) automatically.
 - Collector writes per-source history to `enrichment` and global summary to `ioc_summary`.
 
 ## Tests
@@ -295,15 +300,15 @@ $URL_X_ENCODED = python -c "import urllib.parse,sys; print(urllib.parse.quote(sy
 curl.exe -s "http://127.0.0.1:8000/lookup/$URL_X_ENCODED?debug=true"
 ```
 
-4. Insert URL into IOC table (avoid duplicates):
+4. Verify URL was auto-inserted in table `ioc`:
 
 ```powershell
 @"
-INSERT INTO ioc(type, value)
-SELECT 'url', '$URL_X'
-WHERE NOT EXISTS (
-  SELECT 1 FROM ioc WHERE value = '$URL_X'
-);
+SELECT id, type, value, created_at
+FROM ioc
+WHERE value = '$URL_X'
+ORDER BY id DESC
+LIMIT 5;
 "@ | docker exec -i threat_db psql -U threat -d threatdb
 ```
 

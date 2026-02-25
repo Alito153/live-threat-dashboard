@@ -48,7 +48,13 @@ def _payload(ioc: str, ioc_type: str) -> dict:
 class LookupSmokeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
+        cls.persist_patcher = patch("app.routers.lookup._maybe_persist_lookup_ioc", new=AsyncMock(return_value=123))
+        cls.persist_mock = cls.persist_patcher.start()
         cls.client = TestClient(app)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.persist_patcher.stop()
 
     def setUp(self) -> None:
         lookup_router.ioc_cache.clear()
@@ -121,6 +127,16 @@ class LookupSmokeTests(unittest.TestCase):
         self.assertIn("raw_json", abuse)
         self.assertFalse(first_payload["debug"]["cache_hit"])
         self.assertTrue(second_payload["debug"]["cache_hit"])
+        self.assertIn("db_ioc_id", first_payload["debug"])
+
+    def test_lookup_continues_if_persist_fails(self) -> None:
+        with patch("app.routers.lookup._maybe_persist_lookup_ioc", new=AsyncMock(return_value=None)), patch(
+            "app.routers.lookup.enrich_ioc", new=AsyncMock(return_value=_payload("4.4.4.4", "ip"))
+        ):
+            response = self.client.get("/lookup/4.4.4.4")
+        self.assertEqual(200, response.status_code)
+        payload = response.json()
+        self._assert_basic_shape(payload)
 
 
 if __name__ == "__main__":

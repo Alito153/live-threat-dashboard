@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Threat Dashboard UI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-a" aria-hidden="true"></div>
+    <div class="bg-shape bg-shape-b" aria-hidden="true"></div>
+
+    <main class="page">
+      <header class="hero reveal">
+        <p class="eyebrow">LIVE THREAT DASHBOARD</p>
+        <h1>Threat Intelligence Lookup Interface</h1>
+        <p class="subtitle">
+          Analyse un IOC en temps reel avec AbuseIPDB, OTX et VirusTotal.
+        </p>
+      </header>
+
+      <section class="panel reveal">
+        <form id="lookup-form" class="lookup-form" novalidate>
+          <label class="field">
+            <span>IOC (IP, domaine, URL, hash)</span>
+            <input
+              id="ioc-input"
+              name="ioc"
+              type="text"
+              placeholder="Ex: 8.8.8.8 ou https://example.com"
+              autocomplete="off"
+              required
+            />
+          </label>
+
+          <label class="debug-toggle">
+            <input id="debug-input" type="checkbox" />
+            <span>Mode debug (raw_json)</span>
+          </label>
+
+          <div class="actions">
+            <button id="lookup-btn" type="submit">Lancer l'analyse</button>
+            <p id="status-line" class="status-line">Pret.</p>
+          </div>
+        </form>
+
+        <div class="examples">
+          <p>Exemples rapides:</p>
+          <div class="example-list">
+            <button class="example-chip" data-ioc="8.8.8.8" type="button">8.8.8.8</button>
+            <button class="example-chip" data-ioc="google.com" type="button">google.com</button>
+            <button class="example-chip" data-ioc="https://example.com" type="button">https://example.com</button>
+            <button class="example-chip" data-ioc="44d88612fea8a8f36de82e1278abb02f" type="button">
+              MD5 test
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="summary-panel" class="panel reveal hidden" aria-live="polite">
+        <div class="summary-head">
+          <h2>Summary</h2>
+          <span id="cache-chip" class="chip hidden">cache hit</span>
+        </div>
+
+        <div class="metrics-grid">
+          <article class="metric-card">
+            <p class="metric-label">IOC</p>
+            <p id="metric-ioc" class="metric-value metric-mono">-</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-label">Type</p>
+            <p id="metric-type" class="metric-value">-</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-label">Risk Score</p>
+            <p id="metric-score" class="metric-value">-</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-label">Risk Level</p>
+            <p id="metric-level" class="metric-value risk-badge">-</p>
+          </article>
+        </div>
+
+        <div>
+          <p class="metric-label">Categories</p>
+          <div id="categories-list" class="categories-list"></div>
+        </div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>Sources</h2>
+        <div id="sources-grid" class="sources-grid"></div>
+      </section>
+
+      <section class="panel reveal">
+        <h2>JSON Result</h2>
+        <pre id="json-output" class="json-output">Aucun resultat pour le moment.</pre>
+      </section>
+    </main>
+
+    <script src="/ui/app.js"></script>
+  </body>
+</html>
