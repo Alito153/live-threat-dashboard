@@ -9,6 +9,62 @@ The backend aggregates threat intelligence from:
 
 It normalizes source outputs, computes a global risk score, and stores live enrichment data for dashboard visualization.
 
+## Problem This Tool Solves
+
+Security teams often lose time querying multiple threat intelligence feeds manually for each IOC.
+This creates slow investigations, inconsistent triage decisions, and poor visibility for managers.
+
+This project solves that by:
+- aggregating multiple feeds in one API,
+- normalizing results into a single schema,
+- scoring IOC risk automatically,
+- and exposing live metrics in Grafana for fast decision-making.
+
+## How It Works
+
+1. An IOC is submitted (`/lookup/{ioc}` or inserted in DB for collector processing).
+2. The enrichment orchestrator calls AbuseIPDB, OTX, and VirusTotal concurrently.
+3. Source responses are normalized (`status`, `data`, `error`, `duration_ms`).
+4. A unified risk score and level are computed (`low|medium|high|critical`).
+5. Results are cached in memory (TTL) for API responsiveness.
+6. The live collector writes historical enrichments to PostgreSQL.
+7. Grafana reads `ioc_summary` and `enrichment` for real-time dashboards.
+
+## Technologies Used
+
+- Python 3.11
+- FastAPI + Uvicorn
+- Requests + AnyIO (timeouts, retries, non-blocking thread execution)
+- PostgreSQL (IOC storage, enrichment history, summary table)
+- Grafana (live dashboard and panels)
+- Docker Compose (API + DB + Grafana orchestration)
+- Pytest / unittest (smoke tests)
+
+## Business Value
+
+- Faster SOC triage: analysts get a single risk view instead of 3 separate portals.
+- Better prioritization: `risk_score` and `risk_level` make alert queues actionable.
+- Operational visibility: managers can monitor IOC trends and source error rates live.
+- Lower investigation cost: caching + collector reduce repetitive manual checks.
+- Auditable process: historical enrichment data supports incident reporting and review.
+
+## Professional Development Practices
+
+- Modular architecture (`routers`, `sources`, `collector`, `scoring`).
+- Structured error handling per source (no unhandled crashes in `/lookup` flow).
+- Deterministic tests for lookup and collector behaviors.
+- Documentation-first workflow with runnable commands.
+- Git history uses clean commit messages (`feat:`, `fix:`, `docs:`) and scoped changes.
+- Source code includes focused comments/docstrings where behavior is non-obvious.
+
+## Repository
+
+- GitHub: `https://github.com/Alito153/live-threat-dashboard`
+- Recommended commit style:
+  - `feat: add ...`
+  - `fix: correct ...`
+  - `docs: update ...`
+
 ## What this project demonstrates
 
 - Threat intelligence aggregation from multiple APIs
@@ -17,19 +73,15 @@ It normalizes source outputs, computes a global risk score, and stores live enri
 - Actionable scoring (`risk_score`, `risk_level`, `categories`)
 - Live data flow to PostgreSQL + Grafana visualization
 
-## Stack
-
-- Backend: FastAPI
-- Data processing: Python
-- Database: PostgreSQL
-- Dashboard: Grafana
-- Runtime: Docker Compose
-
 ## Dashboard Screenshot
 
-> Save your Grafana screenshot as `docs/screenshots/live-threat-overview.png`.
-
 ![Live Threat Overview](docs/screenshots/live-threat-overview.png)
+
+## Demo Video
+
+- Add your demo video link here (recommended for recruiters):
+  - `https://www.youtube.com/watch?v=YOUR_DEMO_ID`
+  - or repository asset link (GitHub release/video file)
 
 ## Organisation
 

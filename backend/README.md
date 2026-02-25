@@ -2,6 +2,26 @@
 
 FastAPI backend + PostgreSQL collector for IOC enrichment (AbuseIPDB, OTX, VirusTotal) with Grafana-ready tables.
 
+## Problem Solved
+
+Threat analysts should not have to query multiple intelligence platforms manually for each IOC.
+This backend centralizes enrichment, scoring, and historical storage in one pipeline.
+
+## How The Backend Works
+
+1. `/lookup/{ioc}` detects IOC type and runs source enrichments.
+2. Responses are normalized into a stable schema (`ok/error`, data, error, duration).
+3. Global risk (`risk_score`, `risk_level`, `categories`) is computed from successful sources.
+4. Collector process continuously refreshes due IOCs and persists results to PostgreSQL.
+5. Grafana reads summary/history tables for real-time visualization.
+
+## Business Value
+
+- Reduced triage time for SOC/CSIRT teams.
+- Standardized IOC risk evaluation across analysts.
+- Live visibility for operations/security managers.
+- Historical evidence for incident reviews and reporting.
+
 ## 1) Prerequisites
 
 - Docker Desktop (Windows)
