@@ -33,31 +33,27 @@ It normalizes source outputs, computes a global risk score, and stores live enri
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    A[AbuseIPDB API]
-    B[AlienVault OTX API]
-    C[VirusTotal API]
-
-    U[User / curl / client] --> API[FastAPI /lookup/{ioc}]
-    API --> E[Enrichment Orchestrator]
-    E --> A
-    E --> B
-    E --> C
-
-    E --> R[Risk Scoring<br/>risk_score / risk_level / categories]
-    R --> RESP[JSON response]
-
-    E --> CACHE[In-memory TTL cache]
-    CACHE --> API
-
-    COL[Collector python -m app.collector] --> E
-    COL --> DB[(PostgreSQL)]
-    DB --> G[Grafana]
-
-    DB --> T1[ioc]
-    DB --> T2[enrichment]
-    DB --> T3[ioc_summary]
+```text
+AbuseIPDB API / AlienVault OTX API / VirusTotal API / Client (curl, app, Grafana queries)
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│                 Threat Intelligence Gateway             │
+│            FastAPI + Enrichment Orchestrator           │
+│                  http://127.0.0.1:8000                 │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+                           ├─ /lookup/{ioc} endpoint (IP, domain, URL, hash)
+                           ├─ Source adapters (abuseipdb.py, otx.py, virustotal.py)
+                           ├─ Risk scoring engine (risk_score, risk_level, categories)
+                           ├─ In-memory TTL cache
+                           ├─ Collector process (python -m app.collector)
+                           └─ PostgreSQL write/read layer
+                                      │
+                                      ├─ ioc
+                                      ├─ enrichment
+                                      ├─ ioc_summary
+                                      └─ Grafana dashboard (Live Threat Overview)
 ```
 
 ## Quick start (Docker + PowerShell)
