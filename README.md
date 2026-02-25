@@ -31,29 +31,69 @@ It normalizes source outputs, computes a global risk score, and stores live enri
 
 ![Live Threat Overview](docs/screenshots/live-threat-overview.png)
 
-## Architecture
+## Organisation
 
-```text
-AbuseIPDB API / AlienVault OTX API / VirusTotal API / Client (curl, app, Grafana queries)
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                 Threat Intelligence Gateway             │
-│            FastAPI + Enrichment Orchestrator           │
-│                  http://127.0.0.1:8000                 │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-                           ├─ /lookup/{ioc} endpoint (IP, domain, URL, hash)
-                           ├─ Source adapters (abuseipdb.py, otx.py, virustotal.py)
-                           ├─ Risk scoring engine (risk_score, risk_level, categories)
-                           ├─ In-memory TTL cache
-                           ├─ Collector process (python -m app.collector)
-                           └─ PostgreSQL write/read layer
-                                      │
-                                      ├─ ioc
-                                      ├─ enrichment
-                                      ├─ ioc_summary
-                                      └─ Grafana dashboard (Live Threat Overview)
+```mermaid
+flowchart LR
+    ROOT["LIVE-THREAT-DASHBOARD"]
+    ROOT --> BACK["backend/"]
+    ROOT --> DBDIR["db/"]
+    ROOT --> GRAF["grafana/"]
+    ROOT --> DOCS["docs/"]
+    ROOT --> COMPOSE["docker-compose.yml"]
+
+    BACK --> APP["app/"]
+    BACK --> TESTS["tests/"]
+    BACK --> BREADME["README.md"]
+
+    APP --> ROUTERS["routers/ (health, lookup)"]
+    APP --> SOURCES["sources/ (abuseipdb, otx, virustotal, http_client)"]
+    APP --> CORE["enrichment.py, scoring.py, collector.py, cache.py"]
+    APP --> ENTRY["main.py, config.py, db.py"]
+
+    DBDIR --> INITSQL["init.sql"]
+    GRAF --> PROV["provisioning/ (datasources + dashboards)"]
+    GRAF --> DASHJSON["dashboards/live-threat-overview.json"]
+    DOCS --> SHOTS["screenshots/live-threat-overview.png"]
+```
+
+## Architecture Design
+
+```mermaid
+flowchart TD
+    ABUSE["AbuseIPDB API"]
+    OTX["AlienVault OTX API"]
+    VT["VirusTotal API"]
+
+    CLIENT["User / curl / app"]
+    LOOKUP["FastAPI endpoint /lookup/{ioc}"]
+    COLLECTOR["Collector process (python -m app.collector)"]
+    ENGINE["Enrichment Orchestrator"]
+    SCORE["Risk Scoring + Normalization\nrisk_score / risk_level / categories"]
+    CACHE["In-memory TTL cache"]
+    DB["PostgreSQL"]
+    T1["ioc"]
+    T2["enrichment"]
+    T3["ioc_summary"]
+    GRAFANA["Grafana Live Threat Overview"]
+
+    CLIENT --> LOOKUP
+    LOOKUP --> ENGINE
+    LOOKUP <--> CACHE
+    COLLECTOR --> ENGINE
+
+    ENGINE --> ABUSE
+    ENGINE --> OTX
+    ENGINE --> VT
+
+    ENGINE --> SCORE
+    SCORE --> LOOKUP
+    SCORE --> DB
+
+    DB --> T1
+    DB --> T2
+    DB --> T3
+    DB --> GRAFANA
 ```
 
 ## Quick start (Docker + PowerShell)
@@ -252,3 +292,4 @@ curl.exe -s "http://127.0.0.1:8000/health"
 
 Then open Grafana:
 `http://127.0.0.1:3000` and refresh dashboard `Live Threat Overview`.
+
