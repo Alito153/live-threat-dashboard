@@ -51,6 +51,11 @@ Expected containers:
 - `threat_db` (port 5432)
 - `threat_grafana` (port 3000)
 
+Grafana provisioning is automatic at startup:
+- datasource: `ThreatDB`
+- dashboard folder: `Live Threat`
+- dashboard: `Live Threat Overview`
+
 ## 4) Apply DB schema (`db/init.sql`) from PowerShell
 
 Use pipe (not `<`):

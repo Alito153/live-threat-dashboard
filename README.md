@@ -1,261 +1,258 @@
-Parfait 👌 je te fais une **version README Beta améliorée** avec :
+# LIVE-THREAT-DASHBOARD
 
-✅ commandes de test
-✅ exemples concrets
-✅ explications simples
-✅ prêt à coller dans GitHub
+Live cybersecurity threat dashboard project built with Python, FastAPI, PostgreSQL, and Grafana.
 
----
+The backend aggregates threat intelligence from:
+- AbuseIPDB
+- AlienVault OTX
+- VirusTotal
 
-````markdown
-# 🛡️ Live Threat Dashboard (Beta)
+It normalizes source outputs, computes a global risk score, and stores live enrichment data for dashboard visualization.
 
-Live Threat Dashboard est une API de **Threat Intelligence** permettant  
-d’enrichir des IOC (Indicators of Compromise) en temps quasi réel.
+## What this project demonstrates
 
-Le backend FastAPI interroge plusieurs sources :
+- Threat intelligence aggregation from multiple APIs
+- API integration and IOC enrichment (IP, domain, URL, hash)
+- Resilient data pipeline (timeouts, retries, per-source errors)
+- Actionable scoring (`risk_score`, `risk_level`, `categories`)
+- Live data flow to PostgreSQL + Grafana visualization
 
-- AbuseIPDB → réputation IP
-- AlienVault OTX → pulses & tags
-- VirusTotal → détections moteurs AV
+## Stack
 
-Les données sont ensuite normalisées et scorées pour produire un **risk_level**.
+- Backend: FastAPI
+- Data processing: Python
+- Database: PostgreSQL
+- Dashboard: Grafana
+- Runtime: Docker Compose
 
----
+## Dashboard Screenshot
 
-# 🚀 Fonctionnalités
+> Save your Grafana screenshot as `docs/screenshots/live-threat-overview.png`.
 
-✅ Détection automatique du type d’IOC :
+![Live Threat Overview](docs/screenshots/live-threat-overview.png)
 
-- IP address
-- Domain
-- URL
-- Hash (MD5 / SHA1 / SHA256)
+## Architecture
 
-✅ Enrichissement multi-sources
+```mermaid
+flowchart LR
+    A[AbuseIPDB API]
+    B[AlienVault OTX API]
+    C[VirusTotal API]
 
-✅ Calcul d’un score de risque :
+    U[User / curl / client] --> API[FastAPI /lookup/{ioc}]
+    API --> E[Enrichment Orchestrator]
+    E --> A
+    E --> B
+    E --> C
 
-- risk_points
-- risk_level (low / medium / high)
+    E --> R[Risk Scoring<br/>risk_score / risk_level / categories]
+    R --> RESP[JSON response]
 
-✅ API REST FastAPI
+    E --> CACHE[In-memory TTL cache]
+    CACHE --> API
 
----
+    COL[Collector python -m app.collector] --> E
+    COL --> DB[(PostgreSQL)]
+    DB --> G[Grafana]
 
-# ⚙️ Stack technique
-
-- **Backend** : FastAPI / Uvicorn
-- **HTTP client** : requests
-- **Threat Intel APIs** :
-  - AbuseIPDB
-  - AlienVault OTX
-  - VirusTotal
-- **Configuration** : python-dotenv (.env)
-- **Dashboard** : Grafana (en cours)
-
----
-
-# 📦 Installation
-
-## 1️⃣ Cloner le repo
-
-```bash
-git clone <repo_url>
-cd live-threat-dashboard
-````
-
----
-
-## 2️⃣ Créer un environnement virtuel (recommandé)
-
-### Windows
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
+    DB --> T1[ioc]
+    DB --> T2[enrichment]
+    DB --> T3[ioc_summary]
 ```
 
-### macOS / Linux
+## Quick start (Docker + PowerShell)
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
+Run all commands from the repository root:
+
+1. Create local env file (do not commit secrets):
+
+```powershell
+Copy-Item .env.example .env
 ```
 
----
+2. Edit `.env` and set your API keys:
+- `ABUSEIPDB_API_KEY`
+- `OTX_API_KEY`
+- `VIRUSTOTAL_API_KEY`
 
-## 3️⃣ Installer les dépendances
+3. Start the stack:
 
-```bash
-pip install -r requirements.txt
+```powershell
+docker compose up -d --build
+docker ps
 ```
 
----
+4. Initialize database schema:
 
-## 4️⃣ Configurer `.env`
-
-Créer :
-
-```
-backend/.env
+```powershell
+Get-Content .\db\init.sql | docker exec -i threat_db psql -U threat -d threatdb
 ```
 
-Exemple :
+5. Insert sample IOCs:
 
-```env
-ABUSEIPDB_API_KEY=your_key_here
-OTX_API_KEY=your_key_here
-VIRUSTOTAL_API_KEY=your_key_here
-HTTP_TIMEOUT=10
+```powershell
+@'
+INSERT INTO ioc(type, value)
+VALUES
+  ('ip','8.8.8.8'),
+  ('domain','google.com'),
+  ('url','http://example.com');
+'@ | docker exec -i threat_db psql -U threat -d threatdb
 ```
 
-⚠️ Important :
+6. Check API:
 
-* Pas de guillemets
-* Pas d’espaces
-* Ne jamais commit `.env`
-
----
-
-# ▶️ Lancer le backend
-
-Depuis le dossier `backend/` :
-
-```bash
-cd backend
-python -m uvicorn app.main:app --reload
+```powershell
+curl.exe -s "http://127.0.0.1:8000/health"
+curl.exe -s "http://127.0.0.1:8000/lookup/8.8.8.8"
+curl.exe -s "http://127.0.0.1:8000/lookup/8.8.8.8?debug=true"
 ```
 
-Résultat attendu :
+7. Run live collector:
 
-```
-Uvicorn running on http://127.0.0.1:8000
-Application startup complete
-```
-
----
-
-# 🔎 Tester l’API
-
-## ✅ 1) Vérifier que l’API fonctionne
-
-```bash
-curl http://127.0.0.1:8000/health
+```powershell
+docker exec -it threat_api python -m app.collector
 ```
 
-Réponse attendue :
+8. Verify DB is filling:
 
-```json
-{"status": "ok"}
+```powershell
+@'
+SELECT s.updated_at, i.type, i.value, s.risk_score, s.risk_level
+FROM ioc_summary s
+JOIN ioc i ON i.id = s.ioc_id
+ORDER BY s.updated_at DESC
+LIMIT 20;
+'@ | docker exec -i threat_db psql -U threat -d threatdb
 ```
 
----
+Grafana is available at:
+- `http://127.0.0.1:3000` (`admin` / `admin` by default)
 
-## ✅ 2) Lookup d’une IP
+Grafana provisioning is automatic:
+- datasource: `ThreatDB` (PostgreSQL)
+- dashboard folder: `Live Threat`
+- dashboard: `Live Threat Overview`
 
-```bash
-curl http://127.0.0.1:8000/lookup/8.8.8.8
+## API summary
+
+- `GET /health`
+- `GET /lookup/{ioc}`
+- `GET /lookup/{ioc}?debug=true`
+
+Response includes:
+- `ioc`, `ioc_type`
+- `risk_score` (0-100)
+- `risk_level` (`low|medium|high|critical`)
+- `categories`
+- `sources[]` (normalized per source status/data/error)
+
+## Key project behavior
+
+- Source calls are executed concurrently.
+- Each source always returns a stable structure (`ok` or `error`).
+- Missing API key or upstream failure does not crash `/lookup`.
+- In-memory TTL cache reduces repeated API calls.
+- Collector writes per-source history to `enrichment` and global summary to `ioc_summary`.
+
+## Tests
+
+Run from `backend/`:
+
+```powershell
+python -m unittest discover -s tests -p "test_*.py" -v
+python -m pytest -q
 ```
 
-👉 L’API va :
+## More detailed backend docs
 
-* détecter type = IP
-* appeler AbuseIPDB
-* appeler OTX
-* appeler VirusTotal
-* calculer risk_level
+See `backend/README.md` for complete operational steps and Grafana SQL panel examples.
 
----
+## Tester Une URL X (PowerShell)
 
-## ✅ 3) Lookup d’un domaine
+Use this flow when the collector is stopped and you want to test any URL of your choice.
 
-```bash
-curl http://127.0.0.1:8000/lookup/example.com
+### Terminal 1 - Start Collector
+
+Path:
+`C:\Users\jamai\OneDrive\Desktop\live-threat-dashboard\live-threat-dashboard`
+
+```powershell
+docker compose ps
+docker exec -it threat_api python -m app.collector
 ```
 
----
+Keep Terminal 1 open.
 
-## ✅ 4) Lookup d’une URL
+### Terminal 2 - Test URL X via API + DB
 
-```bash
-curl http://127.0.0.1:8000/lookup/https://example.com
+Path:
+`C:\Users\jamai\OneDrive\Desktop\live-threat-dashboard\live-threat-dashboard`
+
+1. Define your URL:
+
+```powershell
+$URL_X = "https://example.com/path?a=1&b=2"
 ```
 
----
+2. Encode URL for `/lookup/{ioc}` path:
 
-## ✅ 5) Lookup d’un hash
-
-```bash
-curl http://127.0.0.1:8000/lookup/44d88612fea8a8f36de82e1278abb02f
+```powershell
+$URL_X_ENCODED = python -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$URL_X"
 ```
 
-(MD5 de test)
+3. Test immediately via API (`debug=true`):
 
----
-
-# 🧪 Mode Debug
-
-Pour afficher les réponses complètes des sources :
-
-```bash
-curl "http://127.0.0.1:8000/lookup/8.8.8.8?debug=true"
+```powershell
+curl.exe -s "http://127.0.0.1:8000/lookup/$URL_X_ENCODED?debug=true"
 ```
 
-👉 Inclut :
+4. Insert URL into IOC table (avoid duplicates):
 
-* raw AbuseIPDB
-* raw OTX
-* raw VirusTotal
-
----
-
-# 📊 Exemple de réponse
-
-```json
-{
-  "ioc": "8.8.8.8",
-  "type": "ip",
-  "summary": {
-    "risk_level": "low",
-    "risk_points": 0,
-    "signals": []
-  },
-  "abuseipdb": {...},
-  "otx": {...},
-  "virustotal": {...}
-}
+```powershell
+@"
+INSERT INTO ioc(type, value)
+SELECT 'url', '$URL_X'
+WHERE NOT EXISTS (
+  SELECT 1 FROM ioc WHERE value = '$URL_X'
+);
+"@ | docker exec -i threat_db psql -U threat -d threatdb
 ```
 
----
+5. Wait 10-20 seconds, then check summary:
 
-# ⚠️ Limitations Beta
-
-* Pas encore de cache IOC
-* Pas encore de persistance DB complète
-* Appels APIs synchrones
-* Pas encore de gestion avancée des quotas API
-
----
-
-# 🎯 Roadmap
-
-* [ ] Cache IOC
-* [ ] Stockage PostgreSQL
-* [ ] Metrics temps réel
-* [ ] Enrichissement async (httpx / asyncio)
-* [ ] Panels Grafana avancés
-
----
-
-# 👨‍💻 Objectif du projet
-
-Projet développé pour :
-
-🎓 Apprentissage cybersécurité / threat intelligence
-💼 Portfolio GitHub / démonstration SOC-like
-🛡️ Compréhension des APIs de réputation / scoring
-
----
-
+```powershell
+@"
+SELECT s.updated_at, i.value, s.risk_score, s.risk_level, s.categories
+FROM ioc_summary s
+JOIN ioc i ON i.id = s.ioc_id
+WHERE i.value = '$URL_X'
+ORDER BY s.updated_at DESC
+LIMIT 5;
+"@ | docker exec -i threat_db psql -U threat -d threatdb
 ```
+
+6. Check per-source status for this URL:
+
+```powershell
+@"
+SELECT e.fetched_at, e.source, e.raw_json->>'status' AS status, e.raw_json->>'error' AS error
+FROM enrichment e
+JOIN ioc i ON i.id = e.ioc_id
+WHERE i.value = '$URL_X'
+ORDER BY e.fetched_at DESC
+LIMIT 15;
+"@ | docker exec -i threat_db psql -U threat -d threatdb
+```
+
+### Terminal 3 - Optional: API only check
+
+Path:
+`C:\Users\jamai\OneDrive\Desktop\live-threat-dashboard\live-threat-dashboard`
+
+```powershell
+curl.exe -s "http://127.0.0.1:8000/health"
+```
+
+Then open Grafana:
+`http://127.0.0.1:3000` and refresh dashboard `Live Threat Overview`.

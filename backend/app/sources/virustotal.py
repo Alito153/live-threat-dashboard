@@ -132,7 +132,10 @@ async def _lookup_url(url_value: str, *, debug: bool) -> dict[str, Any]:
         )
 
     submit_payload = submit_result.get("data") or {}
-    url_id = ((submit_payload.get("data") or {}).get("id")) or _url_id(url_value)
+    submit_analysis_id = (submit_payload.get("data") or {}).get("id")
+    # VT POST /urls returns an analysis id, while GET /urls/{id} expects the URL id.
+    # Always derive the URL id from the original URL value.
+    url_id = _url_id(url_value)
 
     lookup_result = await request_json(
         "GET",
@@ -151,6 +154,7 @@ async def _lookup_url(url_value: str, *, debug: bool) -> dict[str, Any]:
             extra_error_details={
                 "step": "lookup_url",
                 "url_id": url_id,
+                "submit_analysis_id": submit_analysis_id,
                 "submit_status_code": submit_result.get("status_code"),
             },
         )
