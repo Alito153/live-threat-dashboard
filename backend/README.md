@@ -74,6 +74,17 @@ Expected containers:
 - `threat_db` (port 5432)
 - `threat_grafana` (port 3000)
 
+Interfaces available:
+- User Interface (FastAPI): `http://127.0.0.1:8000/`
+- Grafana Dashboard: `http://127.0.0.1:3000/`
+
+Difference:
+- FastAPI UI = manual IOC lookup and detailed source output.
+- Grafana = live operational view (scores, trends, errors).
+
+When you submit a URL in FastAPI UI, `/lookup/{ioc}` auto-inserts the IOC into DB.
+Then the collector updates enrichment tables, and Grafana shows the new IOC after refresh.
+
 Grafana provisioning is automatic at startup:
 - datasource: `ThreatDB`
 - dashboard folder: `Live Threat`

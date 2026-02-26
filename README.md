@@ -48,23 +48,6 @@ This project solves that by:
 - Lower investigation cost: caching + collector reduce repetitive manual checks.
 - Auditable process: historical enrichment data supports incident reporting and review.
 
-## Professional Development Practices
-
-- Modular architecture (`routers`, `sources`, `collector`, `scoring`).
-- Structured error handling per source (no unhandled crashes in `/lookup` flow).
-- Deterministic tests for lookup and collector behaviors.
-- Documentation-first workflow with runnable commands.
-- Git history uses clean commit messages (`feat:`, `fix:`, `docs:`) and scoped changes.
-- Source code includes focused comments/docstrings where behavior is non-obvious.
-
-## What this project demonstrates
-
-- Threat intelligence aggregation from multiple APIs
-- API integration and IOC enrichment (IP, domain, URL, hash)
-- Resilient data pipeline (timeouts, retries, per-source errors)
-- Actionable scoring (`risk_score`, `risk_level`, `categories`)
-- Live data flow to PostgreSQL + Grafana visualization
-
 ## Dashboard Screenshot
 
 ![Live Threat Overview](docs/screenshots/live-threat-overview.png)
@@ -80,6 +63,71 @@ UI features:
 - summary cards (`risk_score`, `risk_level`, categories)
 - per-source cards (status, score, duration, errors)
 - full JSON result viewer
+
+## User Interface Screenshot
+
+Add a screenshot of the FastAPI UI here:
+- expected file path: `docs/screenshots/ui-interface.png`
+
+![Threat UI Screenshot](docs/screenshots/ui-interface.png)
+
+## Tester le projet sur un PC (Windows + PowerShell)
+
+Chemin du repo:
+- `C:\Users\jamai\OneDrive\Desktop\live-threat-dashboard\live-threat-dashboard`
+
+### 1) Lancer la stack
+
+Terminal 1 (PowerShell), dans le chemin du repo:
+
+```powershell
+docker compose up -d --build
+docker compose ps
+```
+
+### 2) Initialiser la base (une seule fois)
+
+Terminal 1, meme chemin:
+
+```powershell
+Get-Content .\db\init.sql | docker exec -i threat_db psql -U threat -d threatdb
+```
+
+### 3) Lancer le collector live
+
+Terminal 1, meme chemin (laisser ouvert):
+
+```powershell
+docker exec -it threat_api python -m app.collector
+```
+
+### 4) Ouvrir les 2 interfaces
+
+- Interface utilisateur (analyse IOC manuelle): `http://127.0.0.1:8000/`
+- Interface Grafana (vue live globale): `http://127.0.0.1:3000/`
+
+Difference entre les deux:
+- UI FastAPI: investigation IOC par IOC (requete ponctuelle, details source par source).
+- Grafana: supervision temps reel globale (tendances, scores, erreurs, priorisation).
+
+### 5) Verifier le flux UI -> Grafana
+
+1. Dans l'UI (`http://127.0.0.1:8000/`), saisis une URL (ex: `https://www.google.com`) puis lance l'analyse.
+2. L'IOC est auto-insere dans PostgreSQL via `/lookup/{ioc}`.
+3. Le collector enrichit cet IOC et met a jour `ioc_summary` / `enrichment`.
+4. Dans Grafana, apres refresh (5-10s), l'IOC apparait dans les panels/tableaux.
+
+Verification SQL optionnelle (Terminal 2, meme chemin):
+
+```powershell
+@'
+SELECT id, type, value, created_at
+FROM ioc
+WHERE value = 'https://www.google.com'
+ORDER BY id DESC
+LIMIT 5;
+'@ | docker exec -i threat_db psql -U threat -d threatdb
+```
 
 ## Demo Video
 
