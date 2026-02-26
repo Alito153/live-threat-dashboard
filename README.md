@@ -71,53 +71,53 @@ Add a screenshot of the FastAPI UI here:
 
 ![Threat UI Screenshot](docs/screenshots/ui-interface.png)
 
-## Tester le projet sur un PC (Windows + PowerShell)
+## Test The Project On A PC (Windows + PowerShell)
 
-Chemin du repo:
+Repository path:
 - `C:\Users\jamai\OneDrive\Desktop\live-threat-dashboard\live-threat-dashboard`
 
-### 1) Lancer la stack
+### 1) Start the stack
 
-Terminal 1 (PowerShell), dans le chemin du repo:
+Terminal 1 (PowerShell), from the repository path:
 
 ```powershell
 docker compose up -d --build
 docker compose ps
 ```
 
-### 2) Initialiser la base (une seule fois)
+### 2) Initialize the database (one time)
 
-Terminal 1, meme chemin:
+Terminal 1, same path:
 
 ```powershell
 Get-Content .\db\init.sql | docker exec -i threat_db psql -U threat -d threatdb
 ```
 
-### 3) Lancer le collector live
+### 3) Start the live collector
 
-Terminal 1, meme chemin (laisser ouvert):
+Terminal 1, same path (keep it open):
 
 ```powershell
 docker exec -it threat_api python -m app.collector
 ```
 
-### 4) Ouvrir les 2 interfaces
+### 4) Open both interfaces
 
-- Interface utilisateur (analyse IOC manuelle): `http://127.0.0.1:8000/`
-- Interface Grafana (vue live globale): `http://127.0.0.1:3000/`
+- User Interface (manual IOC analysis): `http://127.0.0.1:8000/`
+- Grafana Interface (live global monitoring): `http://127.0.0.1:3000/`
 
-Difference entre les deux:
-- UI FastAPI: investigation IOC par IOC (requete ponctuelle, details source par source).
-- Grafana: supervision temps reel globale (tendances, scores, erreurs, priorisation).
+Difference between both:
+- FastAPI UI: IOC-by-IOC investigation (on-demand query, source-by-source details).
+- Grafana: real-time operational supervision (trends, scores, errors, prioritization).
 
-### 5) Verifier le flux UI -> Grafana
+### 5) Verify the UI -> Grafana flow
 
-1. Dans l'UI (`http://127.0.0.1:8000/`), saisis une URL (ex: `https://www.google.com`) puis lance l'analyse.
-2. L'IOC est auto-insere dans PostgreSQL via `/lookup/{ioc}`.
-3. Le collector enrichit cet IOC et met a jour `ioc_summary` / `enrichment`.
-4. Dans Grafana, apres refresh (5-10s), l'IOC apparait dans les panels/tableaux.
+1. In the UI (`http://127.0.0.1:8000/`), enter a URL (example: `https://www.google.com`) and run analysis.
+2. The IOC is auto-inserted into PostgreSQL through `/lookup/{ioc}`.
+3. The collector enriches this IOC and updates `ioc_summary` / `enrichment`.
+4. In Grafana, after refresh (5-10s), the IOC appears in panels/tables.
 
-Verification SQL optionnelle (Terminal 2, meme chemin):
+Optional SQL verification (Terminal 2, same path):
 
 ```powershell
 @'
@@ -135,7 +135,7 @@ LIMIT 5;
   - `https://www.youtube.com/watch?v=YOUR_DEMO_ID`
   - or repository asset link (GitHub release/video file)
 
-## Organisation
+## Project Organization
 
 ```mermaid
 flowchart LR
@@ -200,201 +200,20 @@ flowchart TD
     DB --> GRAFANA
 ```
 
-## Quick start (Docker + PowerShell)
+## Run And Test (Quick)
 
-Run all commands from the repository root:
+From repository root:
 
-1. Create local env file (do not commit secrets):
+1. `Copy-Item .env.example .env` and set API keys in `.env`.
+2. `docker compose up -d --build`
+3. `Get-Content .\db\init.sql | docker exec -i threat_db psql -U threat -d threatdb`
+4. `docker exec -it threat_api python -m app.collector`
+5. Open:
+   - UI: `http://127.0.0.1:8000/`
+   - Grafana: `http://127.0.0.1:3000/`
 
-```powershell
-Copy-Item .env.example .env
-```
+When you submit an IOC/URL in the UI, it is auto-inserted into PostgreSQL and then appears in Grafana after collector refresh.
 
-2. Edit `.env` and set your API keys:
-- `ABUSEIPDB_API_KEY`
-- `OTX_API_KEY`
-- `VIRUSTOTAL_API_KEY`
-
-3. Start the stack:
-
-```powershell
-docker compose up -d --build
-docker ps
-```
-
-4. Initialize database schema:
-
-```powershell
-Get-Content .\db\init.sql | docker exec -i threat_db psql -U threat -d threatdb
-```
-
-5. Insert sample IOCs:
-
-```powershell
-@'
-INSERT INTO ioc(type, value)
-VALUES
-  ('ip','8.8.8.8'),
-  ('domain','google.com'),
-  ('url','http://example.com');
-'@ | docker exec -i threat_db psql -U threat -d threatdb
-```
-
-6. Check API:
-
-```powershell
-curl.exe -s "http://127.0.0.1:8000/health"
-curl.exe -s "http://127.0.0.1:8000/lookup/8.8.8.8"
-curl.exe -s "http://127.0.0.1:8000/lookup/8.8.8.8?debug=true"
-```
-
-7. Run live collector:
-
-```powershell
-docker exec -it threat_api python -m app.collector
-```
-
-8. Verify DB is filling:
-
-```powershell
-@'
-SELECT s.updated_at, i.type, i.value, s.risk_score, s.risk_level
-FROM ioc_summary s
-JOIN ioc i ON i.id = s.ioc_id
-ORDER BY s.updated_at DESC
-LIMIT 20;
-'@ | docker exec -i threat_db psql -U threat -d threatdb
-```
-
-Grafana is available at:
-- `http://127.0.0.1:3000` (`admin` / `admin` by default)
-
-Grafana provisioning is automatic:
-- datasource: `ThreatDB` (PostgreSQL)
-- dashboard folder: `Live Threat`
-- dashboard: `Live Threat Overview`
-
-## API summary
-
-- `GET /health`
-- `GET /lookup/{ioc}`
-- `GET /lookup/{ioc}?debug=true`
-
-Response includes:
-- `ioc`, `ioc_type`
-- `risk_score` (0-100)
-- `risk_level` (`low|medium|high|critical`)
-- `categories`
-- `sources[]` (normalized per source status/data/error)
-
-## Key project behavior
-
-- Source calls are executed concurrently.
-- Each source always returns a stable structure (`ok` or `error`).
-- Missing API key or upstream failure does not crash `/lookup`.
-- In-memory TTL cache reduces repeated API calls.
-- IOC auto-registration: each `/lookup/{ioc}` call inserts IOC into PostgreSQL (`ioc`) automatically.
-- Collector writes per-source history to `enrichment` and global summary to `ioc_summary`.
-
-## Tests
-
-Run from `backend/`:
-
-```powershell
-python -m unittest discover -s tests -p "test_*.py" -v
-python -m pytest -q
-```
-
-## More detailed backend docs
-
-See `backend/README.md` for complete operational steps and Grafana SQL panel examples.
-
-## Tester Une URL X (PowerShell)
-
-Use this flow when the collector is stopped and you want to test any URL of your choice.
-
-### Terminal 1 - Start Collector
-
-Path:
-`C:\Users\jamai\OneDrive\Desktop\live-threat-dashboard\live-threat-dashboard`
-
-```powershell
-docker compose ps
-docker exec -it threat_api python -m app.collector
-```
-
-Keep Terminal 1 open.
-
-### Terminal 2 - Test URL X via API + DB
-
-Path:
-`C:\Users\jamai\OneDrive\Desktop\live-threat-dashboard\live-threat-dashboard`
-
-1. Define your URL:
-
-```powershell
-$URL_X = "https://example.com/path?a=1&b=2"
-```
-
-2. Encode URL for `/lookup/{ioc}` path:
-
-```powershell
-$URL_X_ENCODED = python -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$URL_X"
-```
-
-3. Test immediately via API (`debug=true`):
-
-```powershell
-curl.exe -s "http://127.0.0.1:8000/lookup/$URL_X_ENCODED?debug=true"
-```
-
-4. Verify URL was auto-inserted in table `ioc`:
-
-```powershell
-@"
-SELECT id, type, value, created_at
-FROM ioc
-WHERE value = '$URL_X'
-ORDER BY id DESC
-LIMIT 5;
-"@ | docker exec -i threat_db psql -U threat -d threatdb
-```
-
-5. Wait 10-20 seconds, then check summary:
-
-```powershell
-@"
-SELECT s.updated_at, i.value, s.risk_score, s.risk_level, s.categories
-FROM ioc_summary s
-JOIN ioc i ON i.id = s.ioc_id
-WHERE i.value = '$URL_X'
-ORDER BY s.updated_at DESC
-LIMIT 5;
-"@ | docker exec -i threat_db psql -U threat -d threatdb
-```
-
-6. Check per-source status for this URL:
-
-```powershell
-@"
-SELECT e.fetched_at, e.source, e.raw_json->>'status' AS status, e.raw_json->>'error' AS error
-FROM enrichment e
-JOIN ioc i ON i.id = e.ioc_id
-WHERE i.value = '$URL_X'
-ORDER BY e.fetched_at DESC
-LIMIT 15;
-"@ | docker exec -i threat_db psql -U threat -d threatdb
-```
-
-### Terminal 3 - Optional: API only check
-
-Path:
-`C:\Users\jamai\OneDrive\Desktop\live-threat-dashboard\live-threat-dashboard`
-
-```powershell
-curl.exe -s "http://127.0.0.1:8000/health"
-```
-
-Then open Grafana:
-`http://127.0.0.1:3000` and refresh dashboard `Live Threat Overview`.
+For full operational commands, SQL checks, and troubleshooting, see:
+- `backend/README.md`
 
