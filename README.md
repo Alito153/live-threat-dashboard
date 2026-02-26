@@ -131,8 +131,8 @@ LIMIT 5;
 
 ## Demo Video
 
-- Demo file (repository asset):
-  - [Live Dashboard Demo Video](docs/videos/livedashboardvideo.mp4)
+- YouTube demo:
+  - [Live Dashboard Demo Video](https://youtu.be/pGHL-kM1FlE)
 
 ## Project Organization
 
