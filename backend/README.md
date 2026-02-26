@@ -223,3 +223,4 @@ python -m pytest -q
   - per-source payloads in `enrichment.raw_json`
   - global score/level/categories in `ioc_summary`
 - `ioc.last_enriched_at` is updated after each processed IOC run.
+- Scoring guardrail: OTX-only positive signals are capped to low risk unless corroborated by VirusTotal or AbuseIPDB.

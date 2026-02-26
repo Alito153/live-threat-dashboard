@@ -153,6 +153,15 @@ def _aggregate_risk(ioc_type: str, sources: list[dict[str, Any]]) -> tuple[int, 
     legacy_score = min(100, int(legacy.get("risk_points", 0)) * 20)
 
     risk_score = max(weighted_score, legacy_score)
+    vt_score = _safe_score((vt_data or {}).get("score"))
+    abuse_score = _safe_score((abuse_data or {}).get("score"))
+    otx_score = _safe_score((otx_data or {}).get("score"))
+
+    # OTX alone can be noisy on popular domains/URLs. Require corroboration from
+    # VirusTotal or AbuseIPDB before allowing medium/high risk escalation.
+    if otx_score > 0 and vt_score == 0 and abuse_score == 0:
+        risk_score = min(risk_score, 20)
+
     return risk_score, _level_from_score(risk_score)
 
 
