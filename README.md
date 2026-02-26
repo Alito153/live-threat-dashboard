@@ -131,9 +131,8 @@ LIMIT 5;
 
 ## Demo Video
 
-- Add your demo video link here (recommended for recruiters):
-  - `https://www.youtube.com/watch?v=YOUR_DEMO_ID`
-  - or repository asset link (GitHub release/video file)
+- Demo file (repository asset):
+  - [Live Dashboard Demo Video](docs/videos/livedashboardvideo.mp4)
 
 ## Project Organization
 
