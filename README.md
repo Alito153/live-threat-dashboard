@@ -66,9 +66,6 @@ UI features:
 
 ## User Interface Screenshot
 
-Add a screenshot of the FastAPI UI here:
-- expected file path: `docs/screenshots/ui-interface.png`
-
 ![Threat UI Screenshot](docs/screenshots/ui-interface.png)
 
 ## Test The Project On A PC (Windows + PowerShell)
