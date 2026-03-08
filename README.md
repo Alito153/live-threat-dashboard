@@ -1,4 +1,4 @@
-# 🛡️ Tableau de Bord des Menaces en Direct (Live Threat Dashboard)
+# Tableau de Bord des Menaces en Direct (Live Threat Dashboard)
 
 Projet de tableau de bord de cybersécurité en temps réel développé avec Python, FastAPI, PostgreSQL et Grafana.
 
@@ -11,7 +11,7 @@ Il normalise les résultats de ces sources, calcule un score de risque global et
 
 ---
 
-## 🛑 Le problème que cet outil résout
+## Le problème que cet outil résout
 
 Les équipes de sécurité perdent souvent du temps à interroger manuellement plusieurs flux de renseignement sur les menaces pour chaque IOC (Indicateur de Compromission).
 Cela entraîne des investigations lentes, des décisions de tri incohérentes et un manque de visibilité pour les managers.
@@ -24,7 +24,7 @@ Ce projet résout ce problème en :
 
 ---
 
-## ⚙️ Comment ça marche
+## Comment ça marche
 
 1. Un IOC est soumis (via `/lookup/{ioc}` ou inséré dans la base de données pour le traitement par le collecteur).
 2. L'orchestrateur d'enrichissement appelle AbuseIPDB, OTX et VirusTotal simultanément.
@@ -36,7 +36,7 @@ Ce projet résout ce problème en :
 
 ---
 
-## 🛠️ Technologies utilisées
+## Technologies utilisées
 
 - Python 3.11
 - FastAPI + Uvicorn
@@ -48,7 +48,7 @@ Ce projet résout ce problème en :
 
 ---
 
-## 💼 Valeur ajoutée pour l'entreprise
+## Valeur ajoutée pour l'entreprise
 
 - **Tri SOC plus rapide :** les analystes obtiennent une vue globale des risques au lieu d'utiliser 3 portails distincts.
 - **Meilleure priorisation :** `risk_score` et `risk_level` rendent les files d'attente d'alertes directement exploitables.
@@ -58,7 +58,7 @@ Ce projet résout ce problème en :
 
 ---
 
-## 💻 Interface Web
+## Interface Web
 
 Une fois la stack démarrée, ouvrez :
 - `http://127.0.0.1:8000/`
@@ -75,7 +75,7 @@ Fonctionnalités de l'interface utilisateur (UI) :
 
 ---
 
-## 📊 Tableau de Bord (Grafana)
+## Tableau de Bord (Grafana)
 
 Le tableau de bord de supervision globale en direct est disponible ici :
 - `http://127.0.0.1:3000/`
@@ -85,14 +85,14 @@ Le tableau de bord de supervision globale en direct est disponible ici :
 
 ---
 
-## 🎥 Vidéo de Démonstration
+## Vidéo de Démonstration
 
 Regardez la démonstration du projet sur YouTube :
 - [Vidéo de démonstration du Dashboard en Direct](https://youtu.be/pGHL-kM1FlE)
 
 ---
 
-## 📂 Organisation du Projet
+## Organisation du Projet
 
 L'organisation du projet respecte les principes de séparation des responsabilités. Le backend est découplé de la base de données et de la visualisation (Grafana). La logique applicative (FastAPI) est divisée en routeurs, sources d'intelligence externes et composants métier centraux.
 
@@ -135,7 +135,7 @@ flowchart LR
 
 ---
 
-## 🏗️ Architecture et Flux de Données
+## Architecture et Flux de Données
 
 Ce système est conçu avec un **Orchestrateur asynchrone** capable de gérer l'enrichissement manuel (par les utilisateurs via l'API) ou automatique (via un processus 'collector' en arrière-plan). Les requêtes API bénéficient d'un cache mémoire pour une lecture rapide, tandis que les opérations lourdes sont déléguées à la base de données PostgreSQL.
 
@@ -197,7 +197,7 @@ flowchart TD
 
 ---
 
-## 🚀 Tester le projet sur un PC (Windows + PowerShell)
+## Tester le projet sur un PC (Windows + PowerShell)
 
 Chemin du dépôt (exemple) :
 `C:\Users\jamai\OneDrive\Desktop\live-threat-dashboard\live-threat-dashboard`
@@ -254,7 +254,7 @@ LIMIT 5;
 
 ---
 
-## ⚡ Exécution et Test Rapide
+## Exécution et Test Rapide
 
 Depuis la racine du projet :
 
