@@ -154,8 +154,9 @@ flowchart LR
 
     %% Flux de données
     CLIENT -- "Requête manuelle" --> API
-    API <--> "Vérifie" CACHE
-    API --> "IOC à vérifier" ORCHESTRATOR
+    API -- "Vérifie" --> CACHE
+    CACHE -- "Miss/Hit" --> API
+    API -- "IOC à vérifier" --> ORCHESTRATOR
     
     COLLECTOR -- "Mise à jour (Auto)" --> ORCHESTRATOR
     
