@@ -137,39 +137,46 @@ flowchart LR
 Ce système est conçu avec un **Orchestrateur asynchrone** capable de gérer l'enrichissement manuel (par les utilisateurs via l'API) ou automatique (via un processus 'collector' en arrière-plan). Les requêtes API bénéficient d'un cache mémoire pour une lecture rapide, tandis que les opérations lourdes sont déléguées à la base de données PostgreSQL.
 
 ```mermaid
-flowchart LR
-    %% Entités
-    CLIENT["Analyste / UI"]
-    API["API FastAPI\n(/lookup/{ioc})"]
-    CACHE[("Cache TTL Mémoire")]
-    COLLECTOR["Processus Collecteur\n(Arrière-plan)"]
-    ORCHESTRATOR["Orchestrateur & Scoring"]
-    DB[("PostgreSQL\n(ioc, enrichment, summary)")]
-    GRAFANA["Tableau de bord\nGrafana"]
-    
-    %% Sources
-    ABUSE["AbuseIPDB"]
-    OTX["AlienVault OTX"]
-    VT["VirusTotal"]
+flowchart TD
+    %% Groupes logiques pour une meilleure lisibilité
+    subgraph Utilisateur ["Interface Utilisateur"]
+        CLIENT["Analyste / UI"]
+        GRAFANA["Tableau de bord Grafana"]
+    end
 
-    %% Flux de données
-    CLIENT -- "Requête manuelle" --> API
-    API -- "Vérifie" --> CACHE
-    CACHE -- "Miss/Hit" --> API
-    API -- "IOC à vérifier" --> ORCHESTRATOR
+    subgraph Backend ["Cœur du Système d'Enrichissement"]
+        API["API FastAPI\n(/lookup/{ioc})"]
+        CACHE[("Cache TTL\nMémoire")]
+        COLLECTOR["Processus Collecteur\n(Arrière-plan)"]
+        ORCHESTRATOR["Orchestrateur & Scoring"]
+    end
+
+    subgraph Stockage ["Persistance"]
+        DB[("PostgreSQL\n(ioc, enrichment, summary)")]
+    end
     
-    COLLECTOR -- "Mise à jour (Auto)" --> ORCHESTRATOR
+    subgraph Sources ["Threat Intelligence Externes"]
+        ABUSE["AbuseIPDB"]
+        OTX["AlienVault OTX"]
+        VT["VirusTotal"]
+    end
+
+    %% Définition des flux
+    CLIENT -- "Investigation manuelle" --> API
+    API <--> "Lecture/Écriture rapide" CACHE
+    API -- "Soumet IOC" --> ORCHESTRATOR
     
-    ORCHESTRATOR -- "Req. Async" --> ABUSE
-    ORCHESTRATOR -- "Req. Async" --> OTX
-    ORCHESTRATOR -- "Req. Async" --> VT
+    COLLECTOR -- "Actualisation périodique" --> ORCHESTRATOR
     
-    ORCHESTRATOR -- "Score & Historique" --> DB
-    ORCHESTRATOR -- "Résultats" --> API
-    API -- "Réponse JSON" --> CLIENT
+    ORCHESTRATOR -- "Requête" --> ABUSE
+    ORCHESTRATOR -- "Requête" --> OTX
+    ORCHESTRATOR -- "Requête" --> VT
     
-    DB -- "Requêtes SQL" --> GRAFANA
-    GRAFANA -- "Supervision" --> CLIENT
+    ORCHESTRATOR -- "Résultats consolidés" --> API
+    ORCHESTRATOR -- "Sauvegarde long terme" --> DB
+    
+    DB -- "Alimentation en temps réel" --> GRAFANA
+    GRAFANA -- "Visualisation globale" --> CLIENT
 ```
 
 ### Points clés de l'architecture :
